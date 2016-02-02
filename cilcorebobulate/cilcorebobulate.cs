@@ -11,6 +11,8 @@ class MainClass
 	{
 		string input_assembly = args [0], output_assembly = args [1];
 
+		Console.WriteLine ("{0} => {1}", input_assembly, output_assembly);
+
 		if (args.Length != 2) {
 			Console.WriteLine ("cilcorebobulate from to");
 			return 1;
@@ -23,11 +25,16 @@ class MainClass
 		var coreclr_assemblies = new Collection<AssemblyNameReference> () {
 			new Mono.Cecil.AssemblyNameReference ("System.Runtime", new Version (4, 0, 21, 0)),
 			new Mono.Cecil.AssemblyNameReference ("System.Runtime.Extensions", new Version (4, 0, 11, 0)),
-			new Mono.Cecil.AssemblyNameReference ("System.Console", new Version (4, 0, 0, 0))
+			new Mono.Cecil.AssemblyNameReference ("System.Console", new Version (4, 0, 0, 0)),
+			new Mono.Cecil.AssemblyNameReference ("System.IO", new Version (4, 0, 0, 0)),
+			new Mono.Cecil.AssemblyNameReference ("System.IO.FileSystem", new Version (4, 0, 0, 0)),
+			new Mono.Cecil.AssemblyNameReference ("System.IO.FileSystem.Primitives", new Version (4, 0, 0, 0)),
+			new Mono.Cecil.AssemblyNameReference ("System.ComponentModel.TypeConverter", new Version (4, 0, 0, 0)),
+			new Mono.Cecil.AssemblyNameReference ("System.Drawing.Primitives", new Version (4, 0, 0, 0))
 		};
 
 		foreach (var core_assembly in coreclr_assemblies)
-			core_assembly.PublicKeyToken = new byte[] {0xb0, 0x3f, 0x5f, 0x7f, 0x11, 0xd5, 0x0a, 0x3a};
+			core_assembly.PublicKeyToken = new byte[] { 0xb0, 0x3f, 0x5f, 0x7f, 0x11, 0xd5, 0x0a, 0x3a };
 
 		Console.WriteLine ("Processing the modules...");
 		foreach (var module in assembly.Modules) {
@@ -43,13 +50,58 @@ class MainClass
 						
 				string lib;
 				if (type.FullName.IndexOf ("System.Runtime.") == 0
-				    || type.FullName.IndexOf ("System.Int") == 0
-					|| new[]{"System.Object"}.FirstOrDefault (s => s == type.FullName) != null)
+				    || type.FullName.IndexOf ("System.Text.") == 0
+				    || new[] {
+					"System.Type",
+					"System.ValueType",
+					"System.RuntimeTypeHandle",
+					"System.RuntimeFieldHandle",
+					"System.Object",
+					"System.Attribute",
+					"System.Int16",
+					"System.Int32",
+					"System.Int64",
+					"System.UInt16",
+					"System.UInt32",
+					"System.UInt64",
+					"System.Byte",
+					"System.Char",
+					"System.String",
+					"System.Array",
+					"System.IDisposable",
+					"System.ArgumentException",
+					"System.ArgumentNullException",
+					"System.InvalidOperationException"
+				}
+					.FirstOrDefault (s => s == type.FullName) != null)
 					lib = "System.Runtime";
-				else if (type.FullName == "System.Math")
+				else if (type.FullName == "System.Math"
+				         || type.FullName.IndexOf ("System.Diagnostics.") == 0)
 					lib = "System.Runtime.Extensions";
 				else if (type.FullName == "System.Console")
 					lib = "System.Console";
+				else if (new[] { "System.IO.File", "System.IO.FileStream" }.FirstOrDefault (s => s == type.FullName) != null)
+					lib = "System.IO.FileSystem";
+				else if (new[] { "System.IO.FileMode", "System.IO.FileAccess", "System.IO.FileShare" }.FirstOrDefault (s => s == type.FullName) != null)
+					lib = "System.IO.FileSystem.Primitives";
+				else if (new[] {
+					"System.IO.TextWriter",
+					"System.IO.TextReader",
+					"System.IO.Stream",
+					"System.IO.StreamReader",
+					"System.IO.StreamWriter"
+				}
+					.FirstOrDefault (s => s == type.FullName) != null)
+					lib = "System.IO";
+				else if (new[] {"System.Drawing.Point"
+				}.FirstOrDefault (s => s == type.FullName) != null)
+					lib = "System.Drawing.Primitives";
+				else if (type.FullName == "System.ComponentModel.TypeConverter")
+					lib = "System.ComponentModel.TypeConverter";
+				else if (new[] { "System.Drawing.Bitmap" }.FirstOrDefault (s => s == type.FullName) != null) {
+					Console.WriteLine ("Error: type {0} not present in .NET Core, straightforward converstion impossible.");
+					return 2;
+				}
 				else
 					throw new System.Exception (String.Format ("mscorlib type {0} not supported!", type.FullName));
 
@@ -62,10 +114,18 @@ class MainClass
 			}
 
 			// Remove default mscorlib
-			module.AssemblyReferences.Remove (module.AssemblyReferences.Single (a => a.Name == "mscorlib"));
+			try {
+				module.AssemblyReferences.Remove (module.AssemblyReferences.SingleOrDefault (a => a.Name == "mscorlib"));
+			}
+			catch (System.InvalidOperationException) {
+				// Not present
+			};
+				
 		}
 
 		assembly.Write (output_assembly);
+
+		Console.WriteLine ("Success.");
 
 		return 0;
 	}
