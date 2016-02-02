@@ -9,9 +9,9 @@ class MainClass
 
 	public static int Main (string[] args)
 	{
-		string input_assembly = args [1], output_assembly = args [2];
+		string input_assembly = args [0], output_assembly = args [1];
 
-		if (args.Length != 3) {
+		if (args.Length != 2) {
 			Console.WriteLine ("cilcorebobulate from to");
 			return 1;
 		}
