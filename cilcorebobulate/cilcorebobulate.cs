@@ -29,6 +29,7 @@ class MainClass
 			new Mono.Cecil.AssemblyNameReference ("System.IO", new Version (4, 0, 0, 0)),
 			new Mono.Cecil.AssemblyNameReference ("System.IO.FileSystem", new Version (4, 0, 0, 0)),
 			new Mono.Cecil.AssemblyNameReference ("System.IO.FileSystem.Primitives", new Version (4, 0, 0, 0)),
+			new Mono.Cecil.AssemblyNameReference ("System.Collections", new Version (4, 0, 0, 0)),
 			new Mono.Cecil.AssemblyNameReference ("System.ComponentModel.TypeConverter", new Version (4, 0, 0, 0)),
 			new Mono.Cecil.AssemblyNameReference ("System.Drawing.Primitives", new Version (4, 0, 0, 0))
 		};
@@ -49,6 +50,10 @@ class MainClass
 				}
 						
 				string lib;
+				if (type.FullName.IndexOf ("System.") == -1) {
+					Console.WriteLine ("        Not in mscorlib, skipping");
+					continue;
+				}
 				if (type.FullName.IndexOf ("System.Runtime.") == 0
 				    || type.FullName.IndexOf ("System.Text.") == 0
 				    || new[] {
@@ -64,14 +69,19 @@ class MainClass
 					"System.UInt16",
 					"System.UInt32",
 					"System.UInt64",
+					"System.Double",
+					"System.Enum",
 					"System.Byte",
 					"System.Char",
 					"System.String",
 					"System.Array",
 					"System.IDisposable",
+					"System.WeakReference",
+					"System.Exception",
 					"System.ArgumentException",
 					"System.ArgumentNullException",
-					"System.InvalidOperationException"
+					"System.InvalidOperationException",
+					"System.EventHandler`1"
 				}
 					.FirstOrDefault (s => s == type.FullName) != null)
 					lib = "System.Runtime";
@@ -80,7 +90,7 @@ class MainClass
 					lib = "System.Runtime.Extensions";
 				else if (type.FullName == "System.Console")
 					lib = "System.Console";
-				else if (new[] { "System.IO.File", "System.IO.FileStream" }.FirstOrDefault (s => s == type.FullName) != null)
+				else if (new[] { "System.IO.File", "System.IO.FileStream", "System.IO.DirectoryInfo" }.FirstOrDefault (s => s == type.FullName) != null)
 					lib = "System.IO.FileSystem";
 				else if (new[] { "System.IO.FileMode", "System.IO.FileAccess", "System.IO.FileShare" }.FirstOrDefault (s => s == type.FullName) != null)
 					lib = "System.IO.FileSystem.Primitives";
@@ -93,6 +103,9 @@ class MainClass
 				}
 					.FirstOrDefault (s => s == type.FullName) != null)
 					lib = "System.IO";
+				else if (type.FullName.IndexOf ("System.Collections.Generic.") == 0) {
+					lib = "System.Collections";
+				}
 				else if (new[] {"System.Drawing.Point"
 				}.FirstOrDefault (s => s == type.FullName) != null)
 					lib = "System.Drawing.Primitives";
@@ -101,8 +114,7 @@ class MainClass
 				else if (new[] { "System.Drawing.Bitmap" }.FirstOrDefault (s => s == type.FullName) != null) {
 					Console.WriteLine ("Error: type {0} not present in .NET Core, straightforward converstion impossible.");
 					return 2;
-				}
-				else
+				} else
 					throw new System.Exception (String.Format ("mscorlib type {0} not supported!", type.FullName));
 
 				var replacement_assembly = coreclr_assemblies.Single (a => a.Name == lib);
@@ -116,10 +128,10 @@ class MainClass
 			// Remove default mscorlib
 			try {
 				module.AssemblyReferences.Remove (module.AssemblyReferences.SingleOrDefault (a => a.Name == "mscorlib"));
-			}
-			catch (System.InvalidOperationException) {
+			} catch (System.InvalidOperationException) {
 				// Not present
-			};
+			}
+			;
 				
 		}
 
