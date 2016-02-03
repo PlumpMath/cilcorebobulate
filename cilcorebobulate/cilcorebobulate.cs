@@ -26,6 +26,7 @@ class MainClass
 		string coreclr_dir = ".";
 		string input_assembly_name = null;
 		string output_assembly_name = null;
+		bool force = false;
 		
 		for (int i = 0; i < args.Length; i++) {
 			switch (args [i]) {
@@ -35,6 +36,9 @@ class MainClass
 				break;
 			case "-v":
 				Verbose = true;
+				break;
+			case "-f":
+				force = true;
 				break;
 			case "--":
 				i++;
@@ -84,7 +88,6 @@ class MainClass
 				
 				foreach (var type in module.ExportedTypes.Select(et => et.FullName).Concat (module.Types.Select(t => t.FullName))) {
 					
-					
 					Log ("      T {0}", type);
 					
 					if (type2as.ContainsKey (type)) {
@@ -127,20 +130,25 @@ class MainClass
 				}
 
 				// Replace the reference & update scope.
+				string clean_name = type.FullName;
 				try {
-					var netcore_assembly = netcore_assemblies [type2as [type.FullName]];
+					var generic_pos = clean_name.IndexOf('/');
+					if (generic_pos != -1)
+						clean_name = clean_name.Substring(0, generic_pos);
+					
+					var netcore_assembly = netcore_assemblies [type2as [clean_name]];
 
 					if (!module.AssemblyReferences.Contains (netcore_assembly))
 						module.AssemblyReferences.Add (netcore_assembly);
 					type.Scope = netcore_assembly;
 
-					Log ("A {0}", type2as [type.FullName] + ".dll");
+					Log ("A {0}", type2as [clean_name] + ".dll");
 				}
 				catch (KeyNotFoundException) {
-					Console.Error.WriteLine ("Error: Type {0} not found in any assembly provided.", type.FullName);
+					Console.Error.WriteLine ("Error: Type {0}(https://dotnet.github.io/api/{0}.html) not found in any assembly provided.", clean_name);
 					Console.Error.WriteLine ("       Perhaps you forgot to get the correct NuGet package or it's not supported by .NET Core?");
-					Console.Error.WriteLine ("       See https://dotnet.github.io/api/{0}.html for more information on the assembly.", type.FullName);
-					return 3;
+					if (!force)
+						return 3;
 				}
 					
 
