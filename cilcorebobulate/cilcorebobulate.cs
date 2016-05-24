@@ -74,13 +74,19 @@ class MainClass
 //				continue;
 					
 			var netcore_dll_name = Path.GetFileName (netcore_dll_path);
-			netcore_dll_name = netcore_dll_name.Substring (0, netcore_dll_name.Length - 4);
-
+			netcore_dll_name = netcore_dll_name.Substring (0, netcore_dll_name.Length - 4);			
 			
 			Log ("  A {0}", netcore_dll_name);
 
 			var assembly = Mono.Cecil.AssemblyDefinition.ReadAssembly (netcore_dll_path);
-			netcore_assemblies [netcore_dll_name] = new Mono.Cecil.AssemblyNameReference (netcore_dll_name, null);
+
+			var assembly_reference = new Mono.Cecil.AssemblyNameReference (netcore_dll_name, assembly.Name.Version);
+
+			var token = assembly.Name.PublicKeyToken;
+			Log ("    publickeytoken = {0}", String.Join (" ", token.Select (b => b.ToString("X2")).ToArray()));
+			assembly_reference.PublicKeyToken = assembly.Name.PublicKeyToken;
+
+			netcore_assemblies [netcore_dll_name] = assembly_reference;
 
 			foreach (var module in assembly.Modules) {
 				
@@ -92,7 +98,7 @@ class MainClass
 					
 					if (type2as.ContainsKey (type)) {
 						Log ("      Warning: Type {0} already exists in another assembly {1}", type, type2as [type]);
-						// Seems like a fairy common thing for whatever reason. Intentional or not?
+						// Seems like a fairly common thing for whatever reason. Intentional or not?
 						// threw new Exception ();
 					}
 					type2as [type] = netcore_dll_name;
